@@ -638,6 +638,9 @@ const DEFAULT_STATUS = {
     }]
   }
 };
+
+// חניכים מוגבלים קבוע — מסומנים ב"הגבלה" בכל יום: בר אלון (s1), שקד גרבר (s19)
+const PERMANENT_RESTRICTIONS = ["s1", "s19"];
 const STATUS_CATEGORIES = [{
   key: "absence",
   label: "היעדרות/חופש",
@@ -842,11 +845,20 @@ function App() {
     setTransportTitle(t && t.title ? t.title : "");
   }, [target, loaded]);
 
-  // סטטוס חניכים אוטומטי לפי תאריך (מתאפס בכל החלפת תאריך)
+  // סטטוס חניכים אוטומטי לפי תאריך (מתאפס בכל החלפת תאריך) + הגבלות קבועות בכל יום
   useEffect(() => {
     if (!loaded) return;
-    const d = DEFAULT_STATUS[fmtDM(target)];
-    setStatus(d ? JSON.parse(JSON.stringify(d)) : {});
+    const base = DEFAULT_STATUS[fmtDM(target)];
+    const next = base ? JSON.parse(JSON.stringify(base)) : {};
+    const restr = next.restriction ? [...next.restriction] : [];
+    PERMANENT_RESTRICTIONS.forEach(id => {
+      if (!restr.find(e => e.id === id)) restr.push({
+        id,
+        note: ""
+      });
+    });
+    next.restriction = restr;
+    setStatus(next);
     setMahanaOverride(null);
   }, [target, loaded]);
   const rosterMap = useMemo(() => Object.fromEntries(roster.map(s => [s.id, s])), [roster]);
