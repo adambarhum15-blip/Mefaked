@@ -623,19 +623,121 @@ const DEFAULT_TRANSPORT = {
   }
 };
 
-// סטטוס חניכים אוטומטי לפי תאריך (s9 = נטלי רובין). השבוע: הגעה מאוחרת 09:00 בשני וברביעי.
+// סטטוס חניכים אוטומטי לפי תאריך. כל מי שיש לו ראיון/שיחה משובץ גם ב"יציאות במהלך הלו"ז" עם השעה.
 const DEFAULT_STATUS = {
+  "07.06": {
+    midOut: [{
+      id: "s13",
+      note: "13:00-14:30",
+      where: "ראיונות ק' אח\"מ"
+    } // אדם ברהום
+    ]
+  },
   "08.06": {
     late: [{
       id: "s9",
       note: "09:00"
-    }]
+    }],
+    // נטלי רובין
+    midOut: [{
+      id: "s6",
+      note: "מ-07:00",
+      where: "פריסה ליום הכנה לפולין"
+    },
+    // וואללין (ווילי) - לוגיסטיקה
+    {
+      id: "s15",
+      note: "12:00-12:30",
+      where: "ביקור סממ\"ז צפון"
+    },
+    // תמיר סואעד
+    {
+      id: "s10",
+      note: "13:00-13:30",
+      where: "ביקור ממ\"ז מרכז"
+    },
+    // ירדן חזן
+    {
+      id: "s16",
+      note: "13:00-13:30",
+      where: "ביקור ממ\"ר לכיש"
+    },
+    // לירון גופמן
+    {
+      id: "s14",
+      note: "13:00-13:30",
+      where: "ביקור ממ\"ר לכיש"
+    },
+    // ישראל מנחם
+    {
+      id: "s3",
+      note: "13:00-13:30",
+      where: "ביקור ממ\"ר לכיש"
+    },
+    // צליל לוי
+    {
+      id: "s22",
+      note: "17:00-18:00",
+      where: "ביקור ממ\"ז ש\"י"
+    } // פיראס מנסור
+    ]
+  },
+  "09.06": {
+    absence: [{
+      id: "s7",
+      note: "בימ\"ש"
+    }] // עידן נבט - נעדר מהלו"ז
   },
   "10.06": {
     late: [{
       id: "s9",
       note: "09:00"
-    }]
+    }],
+    // נטלי רובין
+    midOut: [{
+      id: "s8",
+      note: "11:10",
+      where: "ראיונות סממ\"ז דרום"
+    },
+    // אורי ארביב
+    {
+      id: "s16",
+      note: "11:20",
+      where: "ראיונות סממ\"ז דרום"
+    },
+    // לירון גופמן
+    {
+      id: "s17",
+      note: "11:30",
+      where: "ראיונות סממ\"ז דרום"
+    },
+    // בר נבון
+    {
+      id: "s3",
+      note: "13:20",
+      where: "ראיונות סממ\"ז דרום"
+    },
+    // צליל לוי
+    {
+      id: "s14",
+      note: "13:30",
+      where: "ראיונות סממ\"ז דרום"
+    },
+    // ישראל מנחם
+    {
+      id: "s6",
+      note: "מ-12:00",
+      where: "ארוחת צהריים קורסיאלי / קפה ידע"
+    } // וואללין (ווילי) - לוגיסטיקה
+    ]
+  },
+  "11.06": {
+    midOut: [{
+      id: "s6",
+      note: "מ-05:45",
+      where: "צוות לוגיסטי להיערכות ליום המורשת בדרום"
+    } // וואללין (ווילי)
+    ]
   }
 };
 
@@ -887,6 +989,43 @@ function App() {
       family: ""
     }), e.note)).join(",");
   };
+
+  // "יציאות במהלך הלו"ז" — מקובץ לפי יעד; מי שיוצא לאותו יעד באותה שעה מופיע יחד
+  const midOutGrouped = () => {
+    const arr = status.midOut || [];
+    if (arr.length === 0) return "ללא";
+    const groups = {};
+    const order = [];
+    arr.forEach(e => {
+      const s = rosterMap[e.id];
+      if (!s) return;
+      const where = e.where || "";
+      const key = where || "__none__";
+      if (!groups[key]) {
+        groups[key] = [];
+        order.push(key);
+      }
+      groups[key].push({
+        name: fullName(s),
+        time: e.note || ""
+      });
+    });
+    const lines = order.map(key => {
+      const items = groups[key];
+      const where = key === "__none__" ? "" : key;
+      const times = items.map(i => i.time);
+      const allSame = times[0] && times.every(t => t === times[0]);
+      if (where && allSame) return `${times[0]} ${where} - ${items.map(i => i.name).join(", ")}`;
+      if (where) return `${where} - ${items.map(i => i.time ? `${i.name} ${i.time}` : i.name).join(", ")}`;
+      return items.map(i => i.time ? renderEntry(i.name, i.time) : i.name).join(", ");
+    });
+    return lines.join("\n");
+  };
+  const midOutBlock = prefix => {
+    const t = midOutGrouped();
+    if (t === "ללא") return `🔷 *יציאות במהלך הלו"ז:* ${prefix}ללא`;
+    return `🔷 *יציאות במהלך הלו"ז:*\n${t}`;
+  };
   const buildText = useCallback(() => {
     const wd = weekday(target);
     const heb = hebrewDate(target);
@@ -904,7 +1043,7 @@ function App() {
       lines.push(`🔷 *מחלה:* - ${statusLine("sick")}`);
       lines.push(`🔷 *הגעה מאוחרת:* - ${statusLine("late")}`);
       lines.push(`🔷 *יציאות מוקדמות:* - ${statusLine("earlyOut")}`);
-      lines.push(`🔷 *יציאות במהלך הלו"ז:* - ${statusLine("midOut")}`);
+      lines.push(midOutBlock("- "));
       lines.push(`🔷 *יום הולדת:* - ${statusLine("birthday")}`);
       lines.push(`🔷 *הגבלה:* - ${statusLine("restriction")}`);
       lines.push(`🔷 *שינוי מדיווח ערב* - ${change || "ללא"}`);
@@ -934,7 +1073,7 @@ function App() {
     lines.push(`🔷 *מחלה:* ${statusLine("sick")}`);
     lines.push(`🔷 *הגעה מאוחרת:* ${statusLine("late")}`);
     lines.push(`🔷 *יציאות מוקדמות:* ${statusLine("earlyOut")}`);
-    lines.push(`🔷 *יציאות במהלך הלו"ז:* ${statusLine("midOut")}`);
+    lines.push(midOutBlock(""));
     lines.push(`🔷 *יום הולדת:* ${statusLine("birthday")}`);
     lines.push(`🔷 *הגבלה:* ${statusLine("restriction")}`);
     lines.push("");
